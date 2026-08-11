@@ -1,9 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { puzzleForDate } from './src/data/samplePuzzle';
 import type { GameState, GuessOutcome } from './src/game/engine';
 import {
   clearSelection,
@@ -15,29 +14,46 @@ import {
 import type { StreakState } from './src/game/streak';
 import { applyResult, currentStreak, emptyStreak } from './src/game/streak';
 import { stockholmIsoDate } from './src/lib/date';
+import { useDailyPuzzle } from './src/puzzle/useDailyPuzzle';
 import { GameScreen } from './src/screens/GameScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
+import { PuzzleStatusScreen } from './src/screens/PuzzleStatusScreen';
 import { ResultScreen } from './src/screens/ResultScreen';
 import { loadGame, loadStreak, saveGame, saveStreak } from './src/storage/storage';
+import type { Puzzle } from './src/types/puzzle';
 import { colors, spacing } from './src/theme/tokens';
 
 type Screen = 'home' | 'game' | 'result';
 
-/**
- * Dagens pussel är hårdkodat tills hämtningen finns (§4), men allt runt
- * omkring är på riktigt: dagen bestäms av Europe/Stockholm (§7), spelet
- * sparas lokalt och kan återupptas (§6).
- */
 export default function App() {
   const today = useMemo(() => stockholmIsoDate(), []);
-  const puzzle = useMemo(() => puzzleForDate(today), [today]);
+  const { puzzle: daily, retry } = useDailyPuzzle(today);
 
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
+        {daily.status === 'ok' ? (
+          <Game puzzle={daily.puzzle} today={today} />
+        ) : (
+          <PuzzleStatusScreen state={daily} onRetry={retry} />
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
+
+/**
+ * Själva spelet, monterat först när dagens pussel finns. Att dela upp det
+ * så gör att tillståndet nedan alltid har ett pussel att arbeta mot.
+ */
+function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
   const [screen, setScreen] = useState<Screen>('home');
   const [state, setState] = useState<GameState | null>(null);
   const [streak, setStreak] = useState<StreakState>(emptyStreak);
   const [outcome, setOutcome] = useState<GuessOutcome | null>(null);
 
-  // Läs upp ett pågående spel och streaken innan något ritas ut.
+  // Läs upp ett pågående spel och streaken innan något ritas ut (§6).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -105,51 +121,44 @@ export default function App() {
     setState((current) => (current === null ? current : clearSelection(current)));
   }, []);
 
+  if (state === null) {
+    return <PuzzleStatusScreen state={{ status: 'loading' }} onRetry={() => {}} />;
+  }
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        {state === null ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.ink} />
-          </View>
-        ) : (
-          <ScrollView contentContainerStyle={styles.content}>
-            {screen === 'home' && (
-              <HomeScreen
-                date={puzzle.date}
-                streak={currentStreak(streak, today)}
-                status={state.status}
-                started={state.guesses.length > 0}
-                onPlay={() => setScreen('game')}
-                onSeeResult={() => setScreen('result')}
-              />
-            )}
-            {screen === 'game' && (
-              <GameScreen
-                puzzle={puzzle}
-                state={state}
-                outcome={outcome}
-                onToggleWord={handleToggle}
-                onShuffle={handleShuffle}
-                onClear={handleClear}
-                onSubmit={handleSubmit}
-                onBack={() => setScreen('home')}
-              />
-            )}
-            {screen === 'result' && (
-              <ResultScreen
-                puzzle={puzzle}
-                state={state}
-                streak={currentStreak(streak, today)}
-                longest={streak.longest}
-                onBack={() => setScreen('home')}
-              />
-            )}
-          </ScrollView>
-        )}
-      </SafeAreaView>
-    </SafeAreaProvider>
+    <ScrollView contentContainerStyle={styles.content}>
+      {screen === 'home' && (
+        <HomeScreen
+          date={puzzle.date}
+          streak={currentStreak(streak, today)}
+          status={state.status}
+          started={state.guesses.length > 0}
+          onPlay={() => setScreen('game')}
+          onSeeResult={() => setScreen('result')}
+        />
+      )}
+      {screen === 'game' && (
+        <GameScreen
+          puzzle={puzzle}
+          state={state}
+          outcome={outcome}
+          onToggleWord={handleToggle}
+          onShuffle={handleShuffle}
+          onClear={handleClear}
+          onSubmit={handleSubmit}
+          onBack={() => setScreen('home')}
+        />
+      )}
+      {screen === 'result' && (
+        <ResultScreen
+          puzzle={puzzle}
+          state={state}
+          streak={currentStreak(streak, today)}
+          longest={streak.longest}
+          onBack={() => setScreen('home')}
+        />
+      )}
+    </ScrollView>
   );
 }
 
@@ -157,11 +166,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     flexGrow: 1,

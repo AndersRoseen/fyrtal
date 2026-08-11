@@ -10,12 +10,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { GameState } from '../game/engine';
 import type { StreakState } from '../game/streak';
 import { emptyStreak } from '../game/streak';
+import { isValidPuzzle } from '../puzzle/validate';
+import type { Puzzle } from '../types/puzzle';
 
 const GAME_PREFIX = 'fyrtal:game:';
+const PUZZLE_PREFIX = 'fyrtal:puzzle:';
 const STREAK_KEY = 'fyrtal:streak';
 
 function gameKey(puzzleId: string): string {
   return `${GAME_PREFIX}${puzzleId}`;
+}
+
+function puzzleKey(date: string): string {
+  return `${PUZZLE_PREFIX}${date}`;
 }
 
 /**
@@ -48,6 +55,29 @@ export async function saveGame(state: GameState): Promise<void> {
   await writeJson(gameKey(state.puzzleId), state);
 }
 
+/**
+ * Cachat pussel (§4). Ett hämtat pussel ska överleva både att nätet
+ * försvinner och att filen ändras på servern, så en cache-träff används
+ * alltid framför ett nytt anrop.
+ *
+ * `allowGenerated` följer bygget: ett dev-pussel som råkat cachas ska inte
+ * kunna dyka upp i ett prod-bygge som delar enhet.
+ */
+export async function loadCachedPuzzle(
+  date: string,
+  allowGenerated: boolean,
+): Promise<Puzzle | null> {
+  const puzzle = await readJson<Puzzle>(puzzleKey(date));
+  if (puzzle === null) {
+    return null;
+  }
+  return isValidPuzzle(puzzle, { expectedDate: date, allowGenerated }) ? puzzle : null;
+}
+
+export async function saveCachedPuzzle(puzzle: Puzzle): Promise<void> {
+  await writeJson(puzzleKey(puzzle.date), puzzle);
+}
+
 export async function loadStreak(): Promise<StreakState> {
   const streak = await readJson<StreakState>(STREAK_KEY);
   return streak !== null && isStreakState(streak) ? streak : emptyStreak;
@@ -62,7 +92,8 @@ export async function clearAll(): Promise<void> {
   try {
     const keys = await AsyncStorage.getAllKeys();
     const ours = keys.filter(
-      (key) => key.startsWith(GAME_PREFIX) || key === STREAK_KEY,
+      (key) =>
+        key.startsWith(GAME_PREFIX) || key.startsWith(PUZZLE_PREFIX) || key === STREAK_KEY,
     );
     if (ours.length > 0) {
       await AsyncStorage.multiRemove(ours);
