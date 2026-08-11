@@ -1,24 +1,75 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text } from 'react-native';
 
 import type { PuzzleGroup } from '../types/puzzle';
-import { colors, levelColors, levelMarks, radius, spacing, typography } from '../theme/tokens';
+import {
+  levelColors,
+  levelInk,
+  levelMarks,
+  motion,
+  radius,
+  spacing,
+  typography,
+} from '../theme/tokens';
 
 interface SolvedGroupCardProps {
   group: PuzzleGroup;
   /** Avslöjad vid förlust snarare än löst av spelaren (§2). */
   revealed?: boolean;
+  /** Kör låsanimationen. Av på resultatvyn, där allt redan är löst. */
+  animate?: boolean;
 }
 
-export function SolvedGroupCard({ group, revealed }: SolvedGroupCardProps) {
+/**
+ * En löst grupp. Låsningen animeras diskret (§9): kortet växer fram och
+ * tonar in, så att man ser *att* något låstes utan att spelet stannar upp.
+ */
+export function SolvedGroupCard({ group, revealed, animate = false }: SolvedGroupCardProps) {
+  const progress = useRef(new Animated.Value(animate ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (!animate) {
+      return;
+    }
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: motion.lock,
+      useNativeDriver: true,
+    }).start();
+  }, [animate, progress]);
+
+  const ink = levelInk[group.level];
+
   return (
-    <View style={[styles.card, { backgroundColor: levelColors[group.level] }]}>
-      <Text style={styles.theme}>
-        <Text style={styles.mark}>{levelMarks[group.level]} </Text>
-        {group.theme.toUpperCase()}
-        {revealed ? ' (avslöjad)' : ''}
+    <Animated.View
+      accessibilityRole="text"
+      accessibilityLabel={`${group.theme}: ${group.words.join(', ')}`}
+      style={[
+        styles.card,
+        { backgroundColor: levelColors[group.level] },
+        {
+          opacity: progress,
+          transform: [
+            {
+              scale: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.92, 1],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
+      <Text style={[styles.theme, { color: ink }]}>
+        <Text style={styles.mark}>{levelMarks[group.level]}</Text>
+        {'  '}
+        {group.theme}
+        {revealed ? '  (avslöjad)' : ''}
       </Text>
-      <Text style={styles.words}>{group.words.join(', ')}</Text>
-    </View>
+      <Text style={[styles.words, { color: ink }]}>
+        {group.words.map((word) => word.toUpperCase()).join(' · ')}
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -28,20 +79,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 74,
   },
   theme: {
-    ...typography.label,
-    color: colors.ink,
+    ...typography.theme,
     textAlign: 'center',
   },
   mark: {
-    ...typography.label,
-    color: colors.ink,
+    fontSize: 11,
   },
   words: {
-    ...typography.body,
-    color: colors.ink,
+    ...typography.label,
     marginTop: spacing.xs,
     textAlign: 'center',
+    opacity: 0.85,
   },
 });

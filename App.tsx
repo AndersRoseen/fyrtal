@@ -14,6 +14,7 @@ import {
 import type { StreakState } from './src/game/streak';
 import { applyResult, currentStreak, emptyStreak } from './src/game/streak';
 import { stockholmIsoDate } from './src/lib/date';
+import { useAppFonts } from './src/theme/useAppFonts';
 import { useDailyPuzzle } from './src/puzzle/useDailyPuzzle';
 import { GameScreen } from './src/screens/GameScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -28,10 +29,17 @@ type Screen = 'home' | 'game' | 'result';
 export default function App() {
   const today = useMemo(() => stockholmIsoDate(), []);
   const { puzzle: daily, retry } = useDailyPuzzle(today);
+  const { ready, onLayoutReady } = useAppFonts();
+
+  // Splash ligger kvar tills snitten är laddade, så inget hinner ritas
+  // med systemfonten och byta utseende.
+  if (!ready) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} onLayout={onLayoutReady}>
         <StatusBar style="dark" />
         {daily.status === 'ok' ? (
           <Game puzzle={daily.puzzle} today={today} />
@@ -52,6 +60,9 @@ function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
   const [state, setState] = useState<GameState | null>(null);
   const [streak, setStreak] = useState<StreakState>(emptyStreak);
   const [outcome, setOutcome] = useState<GuessOutcome | null>(null);
+  // Ökar per gissning så att GameScreen kan spela om återkopplingen även
+  // när två gissningar i rad ger samma utfall.
+  const [guessCount, setGuessCount] = useState(0);
 
   // Läs upp ett pågående spel och streaken innan något ritas ut (§6).
   useEffect(() => {
@@ -110,6 +121,7 @@ function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
     const result = submitGuess(state, puzzle);
     setState(result.state);
     setOutcome(result.outcome);
+    setGuessCount((value) => value + 1);
   }, [state, puzzle]);
 
   const handleShuffle = useCallback(() => {
@@ -131,6 +143,7 @@ function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
         <HomeScreen
           date={puzzle.date}
           streak={currentStreak(streak, today)}
+          longest={streak.longest}
           status={state.status}
           started={state.guesses.length > 0}
           onPlay={() => setScreen('game')}
@@ -142,6 +155,7 @@ function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
           puzzle={puzzle}
           state={state}
           outcome={outcome}
+          guessCount={guessCount}
           onToggleWord={handleToggle}
           onShuffle={handleShuffle}
           onClear={handleClear}

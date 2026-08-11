@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../components/Button';
 import { MistakeDots } from '../components/MistakeDots';
@@ -7,13 +9,15 @@ import { WordTile } from '../components/WordTile';
 import type { GameState, GuessOutcome } from '../game/engine';
 import { canSubmit, solvedGroups } from '../game/engine';
 import type { Puzzle } from '../types/puzzle';
-import { colors, spacing, typography } from '../theme/tokens';
+import { colors, motion, spacing, typography } from '../theme/tokens';
 
 interface GameScreenProps {
   puzzle: Puzzle;
   state: GameState;
-  /** Senaste gissningens utfall – underlag för feedback-raden. */
+  /** Senaste gissningens utfall. Ändras vid varje gissning, även samma utfall. */
   outcome: GuessOutcome | null;
+  /** Räknare som ökar per gissning, så återkopplingen kan spelas om. */
+  guessCount: number;
   onToggleWord: (word: string) => void;
   onShuffle: () => void;
   onClear: () => void;
@@ -31,6 +35,7 @@ export function GameScreen({
   puzzle,
   state,
   outcome,
+  guessCount,
   onToggleWord,
   onShuffle,
   onClear,
@@ -38,47 +43,54 @@ export function GameScreen({
   onBack,
 }: GameScreenProps) {
   const rows = chunk(state.order, 4);
-  const feedback = outcome ? FEEDBACK[outcome] : undefined;
+  const feedback = outcome === null ? undefined : FEEDBACK[outcome];
+  const shake = useGuessFeedback(outcome, guessCount);
 
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
-        <Button label="Tillbaka" onPress={onBack} />
+        <Button label="Tillbaka" variant="quiet" onPress={onBack} />
+        <MistakeDots remaining={state.mistakesRemaining} />
       </View>
 
       <View style={styles.board}>
         {solvedGroups(state, puzzle).map(({ level, revealed, group }) => (
-          <SolvedGroupCard key={level} group={group} revealed={revealed} />
+          <SolvedGroupCard key={level} group={group} revealed={revealed} animate />
         ))}
 
-        {rows.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.row}>
-            {row.map((word) => (
-              <WordTile
-                key={word}
-                word={word}
-                selected={state.selected.includes(word)}
-                disabled={state.status !== 'playing'}
-                onPress={onToggleWord}
-              />
-            ))}
-          </View>
-        ))}
+        <Animated.View style={[styles.grid, { transform: [{ translateX: shake }] }]}>
+          {rows.map((row, rowIndex) => (
+            <View key={rowIndex} style={styles.row}>
+              {row.map((word) => (
+                <WordTile
+                  key={word}
+                  word={word}
+                  selected={state.selected.includes(word)}
+                  disabled={state.status !== 'playing'}
+                  onPress={onToggleWord}
+                />
+              ))}
+            </View>
+          ))}
+        </Animated.View>
       </View>
 
-      <Text style={styles.feedback}>{feedback ?? ' '}</Text>
-
-      <MistakeDots remaining={state.mistakesRemaining} />
+      {/* Fast höjd, annars hoppar brädet när återkopplingen dyker upp. */}
+      <View style={styles.feedbackSlot}>
+        {feedback !== undefined && <Text style={styles.feedback}>{feedback}</Text>}
+      </View>
 
       <View style={styles.controls}>
-        <Button label="Blanda" onPress={onShuffle} disabled={state.status !== 'playing'} />
         <Button
-          label="Avmarkera"
-          onPress={onClear}
-          disabled={state.selected.length === 0}
+          label="Blanda"
+          fill
+          onPress={onShuffle}
+          disabled={state.status !== 'playing'}
         />
+        <Button label="Avmarkera" fill onPress={onClear} disabled={state.selected.length === 0} />
         <Button
           label="Gissa"
+          fill
           variant="primary"
           onPress={onSubmit}
           disabled={!canSubmit(state)}
@@ -86,6 +98,40 @@ export function GameScreen({
       </View>
     </View>
   );
+}
+
+/**
+ * Skakar brädet vid en felgissning och lägger på en haptisk knuff. Körs på
+ * `guessCount` snarare än `outcome`, så att två likadana utfall i rad båda
+ * ger återkoppling.
+ */
+function useGuessFeedback(outcome: GuessOutcome | null, guessCount: number) {
+  const shake = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (guessCount === 0 || outcome === null) {
+      return;
+    }
+
+    if (outcome === 'correct') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return;
+    }
+
+    if (outcome === 'wrong' || outcome === 'one-away') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      const step = (toValue: number, duration: number) =>
+        Animated.timing(shake, { toValue, duration, useNativeDriver: true });
+      Animated.sequence([
+        step(-8, motion.shake / 4),
+        step(8, motion.shake / 4),
+        step(-4, motion.shake / 4),
+        step(0, motion.shake / 4),
+      ]).start();
+    }
+  }, [guessCount, outcome, shake]);
+
+  return shake;
 }
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -101,17 +147,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
   },
   topBar: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   board: {
+    gap: spacing.sm,
+  },
+  grid: {
     gap: spacing.sm,
   },
   row: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  feedbackSlot: {
+    height: 22,
+    justifyContent: 'center',
   },
   feedback: {
     ...typography.body,
