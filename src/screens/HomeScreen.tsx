@@ -42,7 +42,7 @@ export function HomeScreen({
             />
           ))}
         </View>
-        <Text style={styles.tagline}>Hitta de fyra grupperna om fyra.</Text>
+        <Text style={styles.tagline}>Hitta alla grupper om fyra</Text>
       </View>
 
       <View style={styles.meta}>

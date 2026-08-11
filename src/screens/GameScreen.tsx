@@ -26,7 +26,7 @@ interface GameScreenProps {
 }
 
 const FEEDBACK: Partial<Record<GuessOutcome, string>> = {
-  'one-away': 'En bort …',
+  'one-away': 'En ifrån …',
   wrong: 'Inte riktigt.',
   'already-guessed': 'Den gissningen är redan gjord.',
 };

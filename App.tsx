@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { BackHandler, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import type { GameState, GuessOutcome } from './src/game/engine';
@@ -108,6 +108,19 @@ function Game({ puzzle, today }: { puzzle: Puzzle; today: string }) {
       setScreen('result');
     }
   }, [screen, state]);
+
+  // Androids bakåtknapp ska gå tillbaka till startvyn, inte stänga appen.
+  // Först när man redan står på startvyn får systemet ta över och avsluta.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (screen === 'home') {
+        return false;
+      }
+      setScreen('home');
+      return true;
+    });
+    return () => subscription.remove();
+  }, [screen]);
 
   const handleToggle = useCallback((word: string) => {
     setOutcome(null);

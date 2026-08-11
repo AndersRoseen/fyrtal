@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 
@@ -28,24 +27,10 @@ interface ResultScreenProps {
 
 export function ResultScreen({ puzzle, state, streak, longest, onBack }: ResultScreenProps) {
   const countdown = useCountdown();
-  const [copied, setCopied] = useState(false);
   const won = state.status === 'won';
   const revealedLevels = new Set(
     state.solved.filter((entry) => entry.revealed).map((entry) => entry.level),
   );
-
-  const handleCopy = async () => {
-    await Clipboard.setStringAsync(shareText(state, puzzle.date));
-    setCopied(true);
-  };
-
-  useEffect(() => {
-    if (!copied) {
-      return;
-    }
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
 
   return (
     <View style={styles.container}>
@@ -91,18 +76,11 @@ export function ResultScreen({ puzzle, state, streak, longest, onBack }: ResultS
             void Share.share({ message: shareText(state, puzzle.date) });
           }}
         />
-        <Button
-          label={copied ? 'Kopierat!' : 'Kopiera'}
-          fill
-          onPress={() => {
-            void handleCopy();
-          }}
-        />
+        <Button label="Till start" fill onPress={onBack} />
       </View>
 
       <View style={styles.footer}>
         <Text style={styles.countdown}>Nästa pussel om {countdown}</Text>
-        <Button label="Till start" variant="quiet" onPress={onBack} />
       </View>
     </View>
   );

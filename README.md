@@ -71,6 +71,7 @@ krypterad fil ett tydligt fel i stället för en krasch.
 | `src/theme/tokens.ts` | Design-tokens: palett, nivåfärger, radier, typografi, motion (§9). |
 | `src/theme/useAppFonts.ts` | Laddar snitten och håller kvar splash tills de är på plats. |
 | `scripts/generate-puzzle.ts` | Dev-generator för testpussel (§5). |
+| `scripts/generate-icons.py` | Genererar ikonassets ur paletten. |
 | `src/data/samplePuzzle.ts` | Exempelpusslet som används när ingen källa är satt. |
 | `src/screens/` | Start-, spel- och resultatvyn (§1). |
 | `App.tsx` | Binder ihop lagring, streak och vy-växling. |
@@ -96,6 +97,12 @@ orden ska vara läsbara små, och Fraunces på rubriker och teman, som ger
 den redaktionella tonen. Importera alltid snitten från vikt-undersökvägen
 (`@expo-google-fonts/space-grotesk/700Bold`) – paketets rot drar in
 samtliga vikter och sväller bygget med ~1,5 MB.
+
+Ikonen är ett 2×2-rutnät i de fyra nivåfärgerna – både "fyra" och en
+bricka, i samma palett som spelet. Assets genereras om med
+`python3 scripts/generate-icons.py`, så de kan aldrig hamna i otakt med
+`tokens.ts`. Den adaptiva ikonens innehåll ligger innanför Androids
+säkerhetszon, så inget beskärs av systemets mask.
 
 Animationerna är korta med flit: brickan kvitterar markering, en löst grupp
 växer fram, brädet skakar vid felgissning, och försöksprickarna pulsar när
