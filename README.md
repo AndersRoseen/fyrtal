@@ -103,18 +103,23 @@ en går förlorad. Längderna ligger i `motion` i `tokens.ts`.
 
 ## Bygga en APK att testa på
 
-App-pipelinen (§8B) ligger i `.github/workflows/build-app.yml`. Den kör
-tester och typkontroll, och bygger sedan en installerbar APK via EAS.
-Install-länken hamnar i körningens job-summary.
+App-pipelinen (§8B) ligger i `.github/workflows/build-app.yml` och startas
+från Actions → **Bygg app** → *Run workflow*, eller av en `v*`-tagg. Den kör
+alltid tester och typkontroll först.
 
-Startas från Actions → **Bygg app** → *Run workflow*, eller genom att tagga
-en `v*`-release. Kräver `EXPO_TOKEN` under Settings → Secrets → Actions;
-saknas den avbryts bygget med ett tydligt meddelande i stället för ett
-kryptiskt EAS-fel.
+**Utan konto (standard).** `apk`-jobbet kör `expo prebuild` och bygger med
+Gradle direkt på runnern. APK:n laddas upp som artifact och länken hamnar i
+körningens job-summary. Kräver inga secrets och inget Expo-konto. APK:n
+signeras med debug-nyckeln – bra nog för egen testning, byt till en riktig
+nyckel före publicering.
 
-`preview`-profilen bygger en APK med dev-flaggorna påslagna, så den kan
-spela okrypterade och genererade pussel. `production` bygger en AAB med
-prod-grinden på.
+**Med EAS.** Kryssa i *Bygg via EAS* vid start. Ger en install-länk i stället
+för en artifact, men kräver ett Expo-konto och `EXPO_TOKEN` under Settings →
+Secrets → Actions. Saknas token avbryts jobbet direkt med ett tydligt
+meddelande i stället för ett kryptiskt EAS-fel.
+
+`android/` genereras vid varje körning och är gitignorerad, så den kan aldrig
+hamna i otakt med `app.json`.
 
 ## Testpussel
 

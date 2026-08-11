@@ -1,15 +1,25 @@
 # App-pipeline (plan.md §8B): bygger en installerbar APK så appen går att
 # testa på riktig enhet.
 #
-# Startas bara manuellt eller av en v*-tagg – aldrig av vanliga pushar, så
-# den drar inga Actions-minuter i onödan.
+# Två vägar till en APK:
+#   * `apk`-jobbet bygger lokalt på runnern med Gradle. Kräver inget konto
+#     och inga secrets – APK:n hamnar som artifact på körningen.
+#   * `eas`-jobbet bygger via EAS och ger en install-länk, men kräver ett
+#     Expo-konto och EXPO_TOKEN. Körs bara när man ber om det.
+#
+# Startas manuellt eller av en v*-tagg – aldrig av vanliga pushar, så den
+# drar inga Actions-minuter i onödan.
 name: Bygg app
 
 on:
   workflow_dispatch:
     inputs:
+      eas:
+        description: Bygg via EAS i stället för lokalt (kräver EXPO_TOKEN)
+        type: boolean
+        default: false
       profile:
-        description: EAS-profil
+        description: EAS-profil (används bara med EAS)
         type: choice
         options: [preview, production]
         default: preview
@@ -34,9 +44,78 @@ jobs:
 
       - run: npm test
 
-  build:
+  apk:
+    name: APK (Gradle)
+    needs: checks
+    if: ${{ !inputs.eas }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      # Genererar android/ från app.json. Mappen är gitignorerad, så den
+      # byggs om vid varje körning och kan aldrig hamna i otakt med configen.
+      - name: Prebuild (genererar android/)
+        run: npx expo prebuild --platform android --no-install
+        env:
+          EXPO_PUBLIC_ALLOW_PLAINTEXT: '1'
+          EXPO_PUBLIC_ALLOW_GENERATED: '1'
+
+      # Expo-mallens release-buildType signerar med debug-nyckeln, så APK:n
+      # går att installera direkt. Byt till en riktig nyckel innan release.
+      - name: Bygg APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          EXPO_PUBLIC_ALLOW_PLAINTEXT: '1'
+          EXPO_PUBLIC_ALLOW_GENERATED: '1'
+
+      - name: Döp om APK:n
+        run: |
+          mkdir -p dist-apk
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "dist-apk/fyrtal-${GITHUB_SHA::7}.apk"
+          ls -lh dist-apk
+
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: fyrtal-apk
+          path: dist-apk/*.apk
+          if-no-files-found: error
+
+      - name: Publicera nedladdningslänk
+        run: |
+          {
+            echo "## Fyrtal – installerbar APK"
+            echo
+            echo "[Ladda ner fyrtal-apk](${{ steps.upload.outputs.artifact-url }})"
+            echo
+            echo "Filen laddas ner som ett zip-arkiv. Packa upp den, flytta"
+            echo "APK:n till telefonen och öppna den. Android frågar om"
+            echo "tillåtelse att installera från okänd källa första gången."
+            echo
+            echo "Signerad med debug-nyckeln – bra nog för egen testning,"
+            echo "men byt till en riktig nyckel före publicering."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  eas:
     name: EAS build (Android)
     needs: checks
+    if: ${{ inputs.eas }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +130,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::EXPO_TOKEN saknas. Lägg till den under Settings → Secrets → Actions."
+            echo "::error::EXPO_TOKEN saknas. Lägg till den under Settings → Secrets → Actions, eller kör utan EAS för en Gradle-byggd APK."
             exit 1
           fi
 
@@ -75,18 +154,10 @@ jobs:
             --wait > build.json
           echo "url=$(jq -r '.[0].artifacts.buildUrl' build.json)" >> "$GITHUB_OUTPUT"
 
-      # Länken i job-summary, så den går att hitta utan att gräva i loggen.
       - name: Publicera install-länk
         run: |
           {
-            echo "## Fyrtal – installerbar APK"
+            echo "## Fyrtal – installerbar APK (EAS)"
             echo
             echo "[Ladda ner APK](${{ steps.build.outputs.url }})"
-            echo
-            echo "Öppna länken på din Android-telefon och installera."
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-metadata
-          path: build.json
