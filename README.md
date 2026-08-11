@@ -11,8 +11,8 @@ Appen är klar: tre vyer, hela spel-logiken, lokal lagring med
 återupptagning och streak, hämtning av dagens pussel med cache och felvyer,
 och designpasset med palett, typografi och animationer.
 
-Kvar står det som ligger utanför appen: krypteringen (§4) och de två
-pipelinesen (§8). Skarven för krypteringen finns redan, se nedan.
+Kvar står det som ligger utanför appen: krypteringen (§4) och
+pusselpipelinen (§8A). Skarven för krypteringen finns redan, se nedan.
 
 ## Kom igång
 
@@ -101,6 +101,21 @@ Animationerna är korta med flit: brickan kvitterar markering, en löst grupp
 växer fram, brädet skakar vid felgissning, och försöksprickarna pulsar när
 en går förlorad. Längderna ligger i `motion` i `tokens.ts`.
 
+## Bygga en APK att testa på
+
+App-pipelinen (§8B) ligger i `.github/workflows/build-app.yml`. Den kör
+tester och typkontroll, och bygger sedan en installerbar APK via EAS.
+Install-länken hamnar i körningens job-summary.
+
+Startas från Actions → **Bygg app** → *Run workflow*, eller genom att tagga
+en `v*`-release. Kräver `EXPO_TOKEN` under Settings → Secrets → Actions;
+saknas den avbryts bygget med ett tydligt meddelande i stället för ett
+kryptiskt EAS-fel.
+
+`preview`-profilen bygger en APK med dev-flaggorna påslagna, så den kan
+spela okrypterade och genererade pussel. `production` bygger en AAB med
+prod-grinden på.
+
 ## Testpussel
 
 ```sh
@@ -114,7 +129,7 @@ valideringen avvisar den märkningen, så ett testpussel kan inte gå live (§5)
 ## Vad som saknas
 
 - Själva krypteringen. `setPuzzleDecryptor` är inkopplingspunkten (§4).
-- De två pipelinesen (§8). Valideringen de behöver ligger redan i
+- Pusselpipelinen (§8A). Valideringen den behöver ligger redan i
   `src/puzzle/validate.ts` och är fri från app-beroenden.
 - Utan konfigurerad källa visas samma exempelpussel varje dag.
 - Nedräkningen på resultatvyn kan visa fel med en timme under det dygn

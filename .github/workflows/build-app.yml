@@ -1,0 +1,92 @@
+# App-pipeline (plan.md §8B): bygger en installerbar APK så appen går att
+# testa på riktig enhet.
+#
+# Startas bara manuellt eller av en v*-tagg – aldrig av vanliga pushar, så
+# den drar inga Actions-minuter i onödan.
+name: Bygg app
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS-profil
+        type: choice
+        options: [preview, production]
+        default: preview
+  push:
+    tags: ['v*']
+
+jobs:
+  checks:
+    name: Tester och typkontroll
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+  build:
+    name: EAS build (Android)
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Kontrollera att EXPO_TOKEN finns
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN saknas. Lägg till den under Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Bygg APK
+        id: build
+        run: |
+          PROFILE="${{ inputs.profile || 'preview' }}"
+          echo "Bygger profilen $PROFILE"
+          eas build \
+            --platform android \
+            --profile "$PROFILE" \
+            --non-interactive \
+            --json \
+            --wait > build.json
+          echo "url=$(jq -r '.[0].artifacts.buildUrl' build.json)" >> "$GITHUB_OUTPUT"
+
+      # Länken i job-summary, så den går att hitta utan att gräva i loggen.
+      - name: Publicera install-länk
+        run: |
+          {
+            echo "## Fyrtal – installerbar APK"
+            echo
+            echo "[Ladda ner APK](${{ steps.build.outputs.url }})"
+            echo
+            echo "Öppna länken på din Android-telefon och installera."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-metadata
+          path: build.json
