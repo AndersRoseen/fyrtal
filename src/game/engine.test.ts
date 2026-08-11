@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { samplePuzzle } from '../data/samplePuzzle';
+import { puzzleForDate } from '../data/samplePuzzle';
 import type { Level } from '../types/puzzle';
 import type { GameState } from './engine';
 import {
@@ -15,6 +15,8 @@ import {
   toggleWord,
 } from './engine';
 import { shareGrid, shareText } from './share';
+
+const samplePuzzle = puzzleForDate('2026-08-12');
 
 /** Deterministisk RNG så att brädet ser likadant ut i varje test. */
 const fixedRng = () => 0.5;

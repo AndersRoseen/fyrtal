@@ -6,7 +6,7 @@ import { SolvedGroupCard } from '../components/SolvedGroupCard';
 import type { GameState } from '../game/engine';
 import { MAX_MISTAKES, mistakesUsed } from '../game/engine';
 import { shareGrid, shareText } from '../game/share';
-import { formatCountdown, msUntilNextMidnight } from '../lib/date';
+import { formatCountdown, msUntilNextStockholmMidnight } from '../lib/date';
 import { LEVELS, groupForLevel } from '../types/puzzle';
 import type { Puzzle } from '../types/puzzle';
 import { colors, spacing, typography } from '../theme/tokens';
@@ -15,10 +15,11 @@ interface ResultScreenProps {
   puzzle: Puzzle;
   state: GameState;
   streak: number;
+  longest: number;
   onBack: () => void;
 }
 
-export function ResultScreen({ puzzle, state, streak, onBack }: ResultScreenProps) {
+export function ResultScreen({ puzzle, state, streak, longest, onBack }: ResultScreenProps) {
   const countdown = useCountdown();
   const won = state.status === 'won';
   const revealedLevels = new Set(
@@ -33,7 +34,8 @@ export function ResultScreen({ puzzle, state, streak, onBack }: ResultScreenProp
           {mistakesUsed(state)} av {MAX_MISTAKES} försök använda
         </Text>
         <Text style={styles.streak}>
-          {streak > 0 ? `${streak} dagar i rad` : 'Ingen streak än'}
+          {streak > 0 ? `${streak} I RAD` : 'INGEN STREAK'}
+          {longest > 0 ? `  ·  LÄNGSTA ${longest}` : ''}
         </Text>
       </View>
 
@@ -66,10 +68,10 @@ export function ResultScreen({ puzzle, state, streak, onBack }: ResultScreenProp
 }
 
 function useCountdown(): string {
-  const [remaining, setRemaining] = useState(() => msUntilNextMidnight());
+  const [remaining, setRemaining] = useState(() => msUntilNextStockholmMidnight());
 
   useEffect(() => {
-    const timer = setInterval(() => setRemaining(msUntilNextMidnight()), 1000);
+    const timer = setInterval(() => setRemaining(msUntilNextStockholmMidnight()), 1000);
     return () => clearInterval(timer);
   }, []);
 

@@ -7,14 +7,23 @@ import { colors, spacing, typography } from '../theme/tokens';
 
 interface HomeScreenProps {
   date: string;
-  /** Streak-värdet. Fas 1 har ingen lagring, så det är 0 tills §7 finns. */
+  /** Antal dagar i rad, redan justerat för missade dagar (§7). */
   streak: number;
   status: GameState['status'];
+  /** Sant om dagens spel är påbörjat men inte avslutat. */
+  started: boolean;
   onPlay: () => void;
   onSeeResult: () => void;
 }
 
-export function HomeScreen({ date, streak, status, onPlay, onSeeResult }: HomeScreenProps) {
+export function HomeScreen({
+  date,
+  streak,
+  status,
+  started,
+  onPlay,
+  onSeeResult,
+}: HomeScreenProps) {
   const finished = status !== 'playing';
 
   return (
@@ -26,20 +35,25 @@ export function HomeScreen({ date, streak, status, onPlay, onSeeResult }: HomeSc
 
       <View style={styles.meta}>
         <Text style={styles.date}>{formatLongDate(date)}</Text>
-        <Text style={styles.streak}>
-          {streak > 0 ? `${streak} dagar i rad` : 'Ingen streak än'}
-        </Text>
+        <Text style={styles.streak}>{streakLabel(streak)}</Text>
       </View>
 
       <View style={styles.actions}>
         <Button
-          label={finished ? 'Se dagens resultat' : 'Spela dagens'}
+          label={finished ? 'Se dagens resultat' : started ? 'Fortsätt spela' : 'Spela dagens'}
           variant="primary"
           onPress={finished ? onSeeResult : onPlay}
         />
       </View>
     </View>
   );
+}
+
+function streakLabel(streak: number): string {
+  if (streak === 0) {
+    return 'Ingen streak än';
+  }
+  return streak === 1 ? '1 dag i rad' : `${streak} dagar i rad`;
 }
 
 const styles = StyleSheet.create({
