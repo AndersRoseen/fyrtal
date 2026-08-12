@@ -71,7 +71,9 @@ krypterad fil ett tydligt fel i stället för en krasch.
 | `src/theme/tokens.ts` | Design-tokens: palett, nivåfärger, radier, typografi, motion (§9). |
 | `src/theme/useAppFonts.ts` | Laddar snitten och håller kvar splash tills de är på plats. |
 | `scripts/generate-puzzle.ts` | Dev-generator för testpussel (§5). |
-| `scripts/generate-icons.py` | Genererar ikonassets ur paletten. |
+| `scripts/generate-icons.py` | Genererar ikoner och butiksgrafik ur paletten. |
+| `scripts/configure-signing.py` | Kopplar in uppladdningsnyckeln i CI-bygget. |
+| `store/` | Butikstext, integritetspolicy, formulärsvar, grafik. |
 | `src/data/samplePuzzle.ts` | Exempelpusslet som används när ingen källa är satt. |
 | `src/screens/` | Start-, spel- och resultatvyn (§1). |
 | `App.tsx` | Binder ihop lagring, streak och vy-växling. |
@@ -127,6 +129,13 @@ meddelande i stället för ett kryptiskt EAS-fel.
 
 `android/` genereras vid varje körning och är gitignorerad, så den kan aldrig
 hamna i otakt med `app.json`.
+
+## Publicering
+
+`store/PUBLISHING.md` är checklistan för Google Play: vad som redan ligger i
+repot, vad som kräver ett konto eller en riktig telefon, och vad som måste
+kontrolleras före första uppladdningen. Butikstext, integritetspolicy,
+formulärsvar och butiksgrafik finns färdiga i `store/`.
 
 ## Testpussel
 
