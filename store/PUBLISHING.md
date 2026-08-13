@@ -77,13 +77,29 @@ Sedan: Actions → **Bygg app** → kryssa i *Bygg en signerad AAB för Play*.
 Bygget vägrar om nyckeln saknas, och kontrollerar efteråt att AAB:n inte
 råkat bli debug-signerad.
 
-### 3. Integritetspolicy på en publik URL
+### 3. Slå på GitHub Pages
 
-Play kräver en fungerande länk, även för appar som inte samlar in något.
-Texten finns i `store/privacy-policy.md`. Enklast: låt GitHub rendera den och
-använd filens URL i repot. Vill du ha en snyggare adress går det att slå på
-GitHub Pages – men samordna det med pusselpipelinen (§4), som också vill
-använda Pages.
+Policyn och en enkel startsida byggs och publiceras redan av
+`.github/workflows/pages.yml`. Det enda som saknas är att slå på Pages:
+
+**Settings → Pages → Source: GitHub Actions.**
+
+Kör sedan Actions → **Publicera sajt**. Adresserna hamnar i körningens
+summary, ungefär:
+
+- `https://andersroseen.github.io/fyrtal/`
+- `https://andersroseen.github.io/fyrtal/integritetspolicy.html`
+
+Den andra går in i Play Console som integritetspolicy, den första som
+webbplats i butikslistningen.
+
+Gratis, eftersom repot är publikt. Pages är avgiftsbelagt först för privata
+repon.
+
+> **Ett repo har bara en Pages-sajt.** Ska de krypterade pusslen (§4)
+> publiceras härifrån måste de in i *samma* arbetsflöde – det finns redan ett
+> steg som kopierar in `dist/puzzles/` när mappen dyker upp. Skapar du ett
+> separat Pages-flöde skriver de över varandra.
 
 ### 4. Skärmbilder
 
@@ -100,12 +116,11 @@ förberedda i `store/data-safety.md`; de ska bara skrivas av.
 
 ## Att kontrollera innan första riktiga uppladdningen
 
-- **Target API-nivå.** Play kräver att nya appar riktar sig mot en någorlunda
-  färsk API-nivå, och kravet skärps varje år. Vilken nivå Expo 57 faktiskt
-  sätter går inte att läsa ur källan – den bestäms av Expos gradle-plugin.
-  Därför skriver APK-bygget ut den i körningens summary. Jämför den siffran
-  med kravet i Play Console; ligger den för lågt behöver `expo-build-properties`
-  läggas till för att tvinga upp den.
+- **Target API-nivå: 36.** Avläst ur det mergade manifestet i bygget av
+  `f5809fc`, alltså inte en gissning. Det är Android 16 och uppfyller Plays
+  krav med marginal. Kravet skärps varje år, så APK-bygget fortsätter skriva
+  ut siffran i körningens summary; behöver den tvingas upp senare är det
+  `expo-build-properties` som gäller.
 - **`versionName`.** Följer `version` i `app.json`, just nu `0.1.0`. Höj den
   till något du vill visa för användare innan produktion.
 - **Paket-id är permanent.** `se.fyrtal.app` går inte att ändra efter

@@ -6,6 +6,9 @@ node_modules/
 # Expo
 .expo/
 dist/
+
+# genererad sajt (byggs av scripts/build-site.py)
+/site/
 web-build/
 expo-env.d.ts
 

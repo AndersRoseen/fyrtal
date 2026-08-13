@@ -1,0 +1,94 @@
+# Publicerar sajten på GitHub Pages – gratis, eftersom repot är publikt.
+#
+# Sajten innehåller integritetspolicyn, som Play kräver på en publik URL, och
+# en enkel startsida att ange som webbplats i butikslistningen.
+#
+# VIKTIGT för pusselpipelinen (plan.md §4): ett repo har **en** Pages-sajt.
+# Vill du senare publicera de krypterade pusslen härifrån ska de läggas in i
+# samma artifact – se steget "Lägg till pussel" nedan – inte i ett eget
+# Pages-flöde, för det skulle skriva över det här.
+name: Publicera sajt
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'store/**'
+      - 'scripts/build-site.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Låt en pågående deploy bli klar; köa aldrig fler än en till.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Bygg
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install markdown
+
+      - name: Bygg sajten
+        run: python3 scripts/build-site.py
+
+      # Pusslen (§4) hör hemma i samma artifact när pipelinen finns. Steget
+      # gör inget så länge dist/puzzles saknas.
+      - name: Lägg till pussel om de finns
+        run: |
+          if [ -d dist/puzzles ]; then
+            mkdir -p site/puzzles
+            cp -r dist/puzzles/. site/puzzles/
+            echo "Kopierade $(ls dist/puzzles | wc -l) pussel"
+          else
+            echo "Inga pussel att publicera än"
+          fi
+
+      - name: Kontrollera att inget läcker
+        run: |
+          # Klartextpussel får aldrig hamna på den publika sajten (§4).
+          if [ -d site/puzzles ] && grep -rlq '"groups"' site/puzzles; then
+            echo "::error::Okrypterade pussel i site/puzzles – avbryter."
+            exit 1
+          fi
+          ls -R site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploya
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Skriv ut adresserna
+        run: |
+          {
+            echo "## Sajten är publicerad"
+            echo
+            echo "- Start: ${{ steps.deployment.outputs.page_url }}"
+            echo "- Integritetspolicy: ${{ steps.deployment.outputs.page_url }}integritetspolicy.html"
+            echo
+            echo "Använd policy-adressen i Play Console."
+          } >> "$GITHUB_STEP_SUMMARY"
