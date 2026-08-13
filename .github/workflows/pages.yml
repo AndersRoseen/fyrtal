@@ -65,7 +65,11 @@ jobs:
           fi
           ls -R site
 
+      # `enablement` slår på Pages via API:t om det inte redan är påslaget,
+      # så sajten kan publiceras utan att någon går in i inställningarna.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
