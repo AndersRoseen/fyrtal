@@ -84,6 +84,12 @@ Policyn och en enkel startsida byggs och publiceras redan av
 
 **Settings → Pages → Source: GitHub Actions.**
 
+Det här steget går inte att automatisera. Arbetsflödet försöker slå på Pages
+själv (`configure-pages` med `enablement: true`), men GITHUB_TOKEN får inte
+skapa en Pages-sajt – det kräver admin-rättigheter på repot. Försöket
+misslyckas med *Resource not accessible by integration*. Efter att du klickat
+en gång sköter arbetsflödet resten för alltid.
+
 Kör sedan Actions → **Publicera sajt**. Adresserna hamnar i körningens
 summary, ungefär:
 
